@@ -1,0 +1,1605 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+  <title>TARGO — Registro de Conductor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    *,*::before,*::after{
+      box-sizing:border-box;margin:0;padding:0;
+      -webkit-tap-highlight-color:transparent
+    }
+    :root{
+      --black:#111111;--amber:#F0A500;--amber-d:#C47E00;
+      --white:#FFFFFF;--dark:#1E1E1E;--card:#242424;
+      --dgray:#555555;--mgray:#999999;--lgray:#DDDDDD;
+      --offwhite:#F5F5F3;--green:#2D6A4F;--red:#C0392B;
+      --r:6px;
+    }
+    html{
+      font-size:16px;background:var(--black);color-scheme:dark;
+      /* NO overflow-x:hidden aquí — rompe window.scrollTo() y position:sticky en iOS Safari */
+    }
+    body{
+      font-family:'Inter',Arial,sans-serif;background:var(--black);color:var(--white);
+      min-height:100vh;-webkit-font-smoothing:antialiased;
+      display:flex;flex-direction:column;align-items:center;padding:0 0 80px;
+      overflow-x:hidden;-webkit-overflow-scrolling:touch
+    }
+
+    /* ── HEADER ── */
+    header{
+      width:100%;background:var(--black);
+      border-bottom:3px solid var(--amber);
+      padding:0 24px;
+      display:flex;align-items:center;justify-content:space-between;
+      height:60px;position:sticky;top:0;z-index:50;
+    }
+    .logo{
+      font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:900;
+      text-transform:uppercase;letter-spacing:.04em;display:flex;align-items:center;gap:6px
+    }
+    .logo span{color:var(--amber)}
+    .header-tag{
+      font-size:11px;font-weight:600;text-transform:uppercase;
+      letter-spacing:.1em;color:var(--mgray)
+    }
+
+    /* ── PROGRESS BAR ── */
+    .progress-wrap{width:100%;max-width:700px;padding:28px 24px 0}
+    .progress-top{
+      display:flex;align-items:center;justify-content:space-between;margin-bottom:10px
+    }
+    .progress-label{
+      font-size:12px;font-weight:600;text-transform:uppercase;
+      letter-spacing:.1em;color:var(--mgray)
+    }
+    .progress-count{font-size:12px;font-weight:700;color:var(--amber)}
+    .progress-track{
+      width:100%;height:3px;background:var(--dark);border-radius:99px;overflow:hidden
+    }
+    .progress-fill{
+      height:100%;background:var(--amber);border-radius:99px;
+      transition:width .4s ease
+    }
+    .steps-dots{display:flex;gap:6px;margin-top:12px}
+    .dot{
+      width:8px;height:8px;border-radius:50%;background:var(--dark);
+      transition:background .3s,transform .2s
+    }
+    .dot.done{background:var(--amber-d)}
+    .dot.active{background:var(--amber);transform:scale(1.3)}
+
+    /* ── FORM CARD ── */
+    .form-wrap{width:100%;max-width:700px;padding:24px}
+    .step{display:none}
+    /* Animación solo en opacity — transform desplaza el contenido durante 300ms
+       y hace que los taps inmediatos fallen el hit-test en iOS */
+    .step.active{display:block;animation:fadeIn .25s ease}
+    @keyframes fadeIn{
+      from{opacity:0}
+      to{opacity:1}
+    }
+
+    .block-eyebrow{
+      font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.16em;
+      color:var(--amber);margin-bottom:8px;display:flex;align-items:center;gap:8px
+    }
+    .block-eyebrow::before{
+      content:'';display:block;width:24px;height:2px;background:var(--amber)
+    }
+    .block-title{
+      font-family:'Barlow Condensed',sans-serif;font-size:clamp(28px,6vw,42px);
+      font-weight:900;text-transform:uppercase;line-height:.95;
+      margin-bottom:8px;letter-spacing:.01em
+    }
+    .block-sub{font-size:14px;color:var(--mgray);line-height:1.6;margin-bottom:32px}
+
+    /* ── FIELD ── */
+    .field{margin-bottom:22px}
+    .field-label{
+      display:block;font-size:12px;font-weight:700;text-transform:uppercase;
+      letter-spacing:.08em;color:var(--mgray);margin-bottom:8px
+    }
+    .field-label .req{color:var(--amber);margin-left:2px}
+    .field-hint{font-size:12px;color:var(--dgray);margin-top:5px;line-height:1.45}
+
+    input[type=text],input[type=number],input[type=tel],input[type=date],
+    select,textarea{
+      width:100%;background:var(--dark);border:1.5px solid rgba(255,255,255,.1);
+      border-radius:var(--r);color:var(--white);
+      font-family:'Inter',sans-serif;font-size:16px;padding:13px 16px;
+      outline:none;transition:border-color .2s,background .2s;
+      -webkit-appearance:none;appearance:none
+    }
+    input::placeholder,textarea::placeholder{color:var(--dgray)}
+    input:focus,select:focus,textarea:focus{
+      border-color:var(--amber);background:#1a1a1a
+    }
+
+    /* Ocultar flechas de number input en todos los navegadores */
+    input[type=number]::-webkit-outer-spin-button,
+    input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+    input[type=number]{-moz-appearance:textfield}
+
+    /* Fix date input en iOS */
+    input[type=date]::-webkit-date-and-time-value{
+      color:var(--white);text-align:left
+    }
+    input[type=date]::-webkit-calendar-picker-indicator{
+      filter:invert(1) sepia(1) saturate(3) hue-rotate(5deg);opacity:.7;cursor:pointer
+    }
+
+    select{
+      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23F0A500' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+      background-repeat:no-repeat;background-position:right 14px center;
+      padding-right:44px;cursor:pointer
+    }
+    select option{background:var(--dark);color:var(--white)}
+
+    textarea{
+      resize:vertical;min-height:90px;line-height:1.5;
+      -webkit-user-select:text;user-select:text
+    }
+
+    /* Grid de dos columnas para campos cortos (placa / año) */
+    .field-row-2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+
+    /* ── OPCIONES VISUALES (cards) ── */
+    .options-grid{display:grid;gap:10px}
+    .options-grid.col2{grid-template-columns:1fr 1fr}
+    .options-grid.col3{grid-template-columns:1fr 1fr 1fr}
+
+    .opt-label{
+      display:flex;align-items:center;gap:12px;
+      background:var(--dark);border:1.5px solid rgba(255,255,255,.08);
+      border-radius:var(--r);padding:14px 16px;cursor:pointer;
+      transition:border-color .2s,background .2s;
+      user-select:none;-webkit-user-select:none;
+      touch-action:manipulation;min-height:44px
+    }
+    .opt-label:active{background:#1a1a1a;border-color:rgba(240,165,0,.3)}
+    .opt-label.selected{border-color:var(--amber);background:rgba(240,165,0,.08)}
+
+    .opt-icon{
+      width:38px;height:38px;border-radius:4px;background:var(--black);
+      display:flex;align-items:center;justify-content:center;flex-shrink:0;
+      font-size:20px;
+    }
+    .opt-content{flex:1;min-width:0}
+    .opt-title{font-size:14px;font-weight:600;color:var(--white);line-height:1.2}
+    .opt-desc{font-size:12px;color:var(--mgray);margin-top:2px;line-height:1.35}
+    .opt-check{
+      width:20px;height:20px;border-radius:50%;border:1.5px solid rgba(255,255,255,.2);
+      flex-shrink:0;display:flex;align-items:center;justify-content:center;
+      transition:all .2s
+    }
+    .opt-label.selected .opt-check{background:var(--amber);border-color:var(--amber)}
+    .opt-label.selected .opt-check::after{
+      content:'';display:block;width:6px;height:10px;
+      border:2px solid var(--black);border-top:none;border-left:none;
+      transform:rotate(45deg) translate(-1px,-1px)
+    }
+
+    /* Compact option (sin icono) */
+    .opt-compact{
+      display:flex;align-items:center;gap:10px;
+      background:var(--dark);border:1.5px solid rgba(255,255,255,.08);
+      border-radius:var(--r);padding:11px 14px;cursor:pointer;
+      transition:border-color .2s,background .2s;
+      user-select:none;-webkit-user-select:none;
+      touch-action:manipulation;min-height:44px
+    }
+    .opt-compact:active{background:#1a1a1a;border-color:rgba(240,165,0,.3)}
+    .opt-compact.selected{border-color:var(--amber);background:rgba(240,165,0,.08)}
+    .opt-compact .opt-dot{
+      width:16px;height:16px;border-radius:50%;
+      border:1.5px solid rgba(255,255,255,.25);
+      flex-shrink:0;transition:all .2s
+    }
+    .opt-compact.selected .opt-dot{background:var(--amber);border-color:var(--amber)}
+    .opt-compact-text{font-size:14px;font-weight:500;color:var(--white);line-height:1.3}
+    .opt-compact-sub{font-size:11px;color:var(--mgray);margin-top:2px;line-height:1.3}
+
+    /* Checkbox tag style (selección múltiple) */
+    .tags-wrap{display:flex;flex-wrap:wrap;gap:8px}
+    .tag-label{
+      display:flex;align-items:center;gap:6px;
+      background:var(--dark);border:1.5px solid rgba(255,255,255,.1);
+      border-radius:99px;padding:8px 14px;cursor:pointer;
+      transition:all .2s;
+      user-select:none;-webkit-user-select:none;
+      touch-action:manipulation;min-height:40px
+    }
+    .tag-label:active{background:#1a1a1a}
+    .tag-label.selected{
+      background:rgba(240,165,0,.12);border-color:var(--amber);color:var(--amber)
+    }
+    .tag-text{font-size:13px;font-weight:500}
+    .tag-check{font-size:12px;display:none}
+    .tag-label.selected .tag-check{display:inline}
+
+    /* ── DIVIDER ── */
+    .divider{height:1px;background:rgba(255,255,255,.07);margin:28px 0}
+
+    /* ── TONELAJE SLIDER ── */
+    .range-val{
+      font-family:'Barlow Condensed',sans-serif;font-size:48px;font-weight:900;
+      color:var(--amber);line-height:1;margin-bottom:10px
+    }
+    .range-val span{font-size:18px;color:var(--mgray);margin-left:6px}
+    input[type=range]{
+      -webkit-appearance:none;appearance:none;
+      width:100%;height:6px;
+      background:var(--dark);border-radius:99px;
+      outline:none;cursor:pointer;
+      border:none;padding:0;
+      touch-action:manipulation
+    }
+    input[type=range]::-webkit-slider-thumb{
+      -webkit-appearance:none;
+      width:28px;height:28px;border-radius:50%;
+      background:var(--amber);cursor:pointer;
+      border:3px solid var(--black);box-shadow:0 0 0 2px var(--amber)
+    }
+    input[type=range]::-moz-range-thumb{
+      width:28px;height:28px;border-radius:50%;
+      background:var(--amber);cursor:pointer;border:3px solid var(--black)
+    }
+    input[type=range]::-webkit-slider-runnable-track{border-radius:99px}
+    .range-labels{
+      display:flex;justify-content:space-between;
+      font-size:11px;color:var(--dgray);margin-top:8px
+    }
+
+    /* ── RESUMEN ── */
+    .summary-block{
+      background:var(--dark);border:1px solid rgba(255,255,255,.08);
+      border-radius:var(--r);margin-bottom:12px;overflow:hidden
+    }
+    .summary-header{
+      display:flex;align-items:center;gap:10px;
+      padding:12px 16px;border-bottom:1px solid rgba(255,255,255,.06)
+    }
+    .summary-header-icon{font-size:16px}
+    .summary-header-title{
+      font-size:12px;font-weight:700;text-transform:uppercase;
+      letter-spacing:.08em;color:var(--amber)
+    }
+    .summary-rows{padding:4px 0}
+    .summary-row{
+      display:flex;justify-content:space-between;align-items:flex-start;
+      padding:10px 16px;gap:12px;border-bottom:1px solid rgba(255,255,255,.04)
+    }
+    .summary-row:last-child{border-bottom:none}
+    .sum-key{font-size:12px;color:var(--mgray);flex-shrink:0;min-width:100px}
+    .sum-val{font-size:13px;font-weight:600;text-align:right;word-break:break-word}
+
+    .confirm-note{
+      background:rgba(240,165,0,.08);border-left:3px solid var(--amber);
+      padding:14px 16px;border-radius:0 var(--r) var(--r) 0;
+      font-size:13px;color:rgba(255,255,255,.8);line-height:1.55;margin-bottom:24px
+    }
+
+    /* ── BOTONES ── */
+    .nav-btns{display:flex;gap:12px;margin-top:32px;flex-wrap:wrap}
+    .btn{
+      display:inline-flex;align-items:center;justify-content:center;gap:8px;
+      font-family:'Inter',sans-serif;font-size:14px;font-weight:700;
+      text-transform:uppercase;letter-spacing:.07em;
+      border:none;cursor:pointer;text-decoration:none;
+      padding:14px 28px;border-radius:var(--r);
+      transition:background .15s,opacity .15s,transform .1s;
+      flex:1;touch-action:manipulation;min-height:48px;
+      -webkit-appearance:none;appearance:none
+    }
+    .btn:active{transform:scale(.97)}
+    .btn:disabled{opacity:.55;pointer-events:none}
+    .btn-amber{background:var(--amber);color:var(--black)}
+    .btn-amber:active,.btn-amber:hover{background:var(--amber-d)}
+    @keyframes shake{
+      0%,100%{transform:translateX(0)}
+      20%{transform:translateX(-6px)}
+      40%{transform:translateX(6px)}
+      60%{transform:translateX(-4px)}
+      80%{transform:translateX(4px)}
+    }
+    .btn-shake{animation:shake .4s ease}
+    .btn-outline{
+      background:transparent;color:var(--white);
+      border:1.5px solid rgba(255,255,255,.2);flex:0 0 auto
+    }
+    .btn-outline:active,.btn-outline:hover{
+      border-color:var(--white);background:rgba(255,255,255,.05)
+    }
+    .btn-whatsapp{background:#25D366;color:var(--white);width:100%}
+    .btn-whatsapp:active,.btn-whatsapp:hover{background:#1eb85a}
+
+    /* ── PANTALLA ÉXITO ── */
+    .success-screen{text-align:center;padding:40px 0;display:none}
+    .success-screen.active{display:block;animation:fadeIn .4s ease}
+    .success-icon{
+      width:72px;height:72px;background:var(--green);border-radius:50%;
+      display:flex;align-items:center;justify-content:center;
+      margin:0 auto 24px;font-size:32px
+    }
+    .success-title{
+      font-family:'Barlow Condensed',sans-serif;font-size:48px;font-weight:900;
+      text-transform:uppercase;line-height:.95;margin-bottom:12px
+    }
+    .success-title .amber{color:var(--amber)}
+    .success-sub{
+      font-size:15px;color:var(--mgray);line-height:1.6;
+      max-width:400px;margin:0 auto 32px
+    }
+    .success-tagline{
+      font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;
+      letter-spacing:.18em;text-transform:uppercase;color:var(--amber);margin-top:32px
+    }
+    .wpp-btn-wrap{
+      display:flex;justify-content:center;margin:0 auto;max-width:320px
+    }
+
+    /* ── ERRORES ── */
+    .field-error{font-size:12px;color:#e74c3c;margin-top:5px;display:none}
+    .field-error.show{display:block}
+    input.error,select.error{border-color:#e74c3c}
+
+    /* ── RESPONSIVE ── */
+    @media(max-width:540px){
+      .options-grid.col3{grid-template-columns:1fr 1fr}
+      .options-grid.col2{grid-template-columns:1fr}
+    }
+    @media(max-width:400px){
+      .form-wrap{padding:16px}
+      .progress-wrap{padding:20px 16px 0}
+      header{padding:0 16px}
+      .field-row-2{grid-template-columns:1fr}
+      .opt-compact-text{font-size:13px}
+      .options-grid.col3{grid-template-columns:1fr 1fr}
+      .block-sub{margin-bottom:20px}
+    }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="logo"><span>»</span> TARGO</div>
+  <div class="header-tag">Registro conductor</div>
+</header>
+
+<!-- BARRA DE PROGRESO -->
+<div class="progress-wrap">
+  <div class="progress-top">
+    <span class="progress-label" id="step-label">Paso 1 de 6</span>
+    <span class="progress-count" id="step-pct">17%</span>
+  </div>
+  <div class="progress-track">
+    <div class="progress-fill" id="p-fill" style="width:17%"></div>
+  </div>
+  <div class="steps-dots" id="dots"></div>
+</div>
+
+<!-- FORMULARIO -->
+<div class="form-wrap">
+
+  <!-- ══════════════════════ PASO 1: QUIÉN ERES ══════════════════════ -->
+  <div class="step active" id="step-1">
+    <p class="block-eyebrow">01 — Empecemos</p>
+    <h2 class="block-title">¿QUIÉN<br>ERES?</h2>
+    <p class="block-sub">Datos básicos tuyos. En menos de 2 minutos terminamos esta parte.</p>
+
+    <div class="field">
+      <label class="field-label">Nombre completo <span class="req">*</span></label>
+      <input type="text" id="f-nombre" placeholder="Ej: Carlos Andrés Pérez Ramirez"
+             autocomplete="name" inputmode="text"/>
+      <div class="field-error" id="e-nombre">Escribe tu nombre completo (mínimo 2 palabras).</div>
+    </div>
+
+    <div class="field">
+      <label class="field-label">Número de cédula <span class="req">*</span></label>
+      <input type="text" id="f-cedula" placeholder="Ej: 1045678901"
+             inputmode="numeric" maxlength="10" autocomplete="off"/>
+      <p class="field-hint">Solo números, sin puntos ni espacios.</p>
+      <div class="field-error" id="e-cedula">Ingresa una cédula válida (8 a 10 dígitos).</div>
+    </div>
+
+    <div class="field">
+      <label class="field-label">Número de WhatsApp <span class="req">*</span></label>
+      <input type="tel" id="f-wpp" placeholder="Ej: 3001234567"
+             inputmode="numeric" autocomplete="tel"/>
+      <p class="field-hint">Este es el número al que te llegarán las cargas. Sin el 57.</p>
+      <div class="field-error" id="e-wpp">Ingresa un número de celular colombiano válido (10 dígitos).</div>
+    </div>
+
+    <div class="field">
+      <label class="field-label">Teléfono alterno</label>
+      <input type="tel" id="f-tel2" placeholder="Ej: 3109876543 — o deja vacío"
+             inputmode="numeric" autocomplete="tel"/>
+      <p class="field-hint">Opcional. Para contactarte si no respondes el principal.</p>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="field">
+      <label class="field-label">¿En qué municipio vives o tienes base? <span class="req">*</span></label>
+      <input type="text" id="f-municipio" placeholder="Ej: Montería"
+             autocomplete="address-level2"/>
+      <div class="field-error" id="e-municipio">Ingresa el municipio donde operas.</div>
+    </div>
+
+    <div class="field">
+      <label class="field-label">Departamento <span class="req">*</span></label>
+      <select id="f-dpto" autocomplete="address-level1">
+        <option value="">— Selecciona tu departamento —</option>
+        <option>Amazonas</option><option>Antioquia</option><option>Arauca</option>
+        <option>Atlántico</option><option>Bolívar</option><option>Boyacá</option>
+        <option>Caldas</option><option>Caquetá</option><option>Casanare</option>
+        <option>Cauca</option><option>Cesar</option><option>Chocó</option>
+        <option>Córdoba</option><option>Cundinamarca</option><option>Guainía</option>
+        <option>Guaviare</option><option>Huila</option><option>La Guajira</option>
+        <option>Magdalena</option><option>Meta</option><option>Nariño</option>
+        <option>Norte de Santander</option><option>Putumayo</option><option>Quindío</option>
+        <option>Risaralda</option><option>San Andrés y Providencia</option>
+        <option>Santander</option><option>Sucre</option><option>Tolima</option>
+        <option>Valle del Cauca</option><option>Vaupés</option><option>Vichada</option>
+      </select>
+      <div class="field-error" id="e-dpto">Selecciona tu departamento.</div>
+    </div>
+
+    <div class="nav-btns">
+      <button type="button" class="btn btn-amber" data-next="1">
+        Siguiente — Mi camión »
+      </button>
+    </div>
+  </div>
+
+  <!-- ══════════════════════ PASO 2: TU CAMIÓN ══════════════════════ -->
+  <div class="step" id="step-2">
+    <p class="block-eyebrow">02 — El vehículo</p>
+    <h2 class="block-title">TU<br>CAMIÓN.</h2>
+    <p class="block-sub">Cuéntanos todo sobre el vehículo. Esto define qué cargas te ofrecemos.</p>
+
+    <div class="field">
+      <label class="field-label">¿Qué tipo de vehículo tienes? <span class="req">*</span></label>
+      <div class="options-grid" id="tipo-vehiculo">
+
+        <label class="opt-label">
+          <div class="opt-icon">🛻</div>
+          <div class="opt-content">
+            <div class="opt-title">Camioneta de carga</div>
+            <div class="opt-desc">Toyota, L200, NP300 · Hasta 1.5 ton</div>
+          </div>
+          <div class="opt-check"></div>
+        </label>
+
+        <label class="opt-label">
+          <div class="opt-icon">🚚</div>
+          <div class="opt-content">
+            <div class="opt-title">NHR / NPR</div>
+            <div class="opt-desc">Chevrolet, Isuzu · 3 a 8 ton</div>
+          </div>
+          <div class="opt-check"></div>
+        </label>
+
+        <label class="opt-label">
+          <div class="opt-icon">🚛</div>
+          <div class="opt-content">
+            <div class="opt-title">Camión sencillo</div>
+            <div class="opt-desc">2 ejes · 8 a 17 ton</div>
+          </div>
+          <div class="opt-check"></div>
+        </label>
+
+        <label class="opt-label">
+          <div class="opt-icon">🚛</div>
+          <div class="opt-content">
+            <div class="opt-title">Doble troque</div>
+            <div class="opt-desc">3 ejes · 17 a 28 ton</div>
+          </div>
+          <div class="opt-check"></div>
+        </label>
+
+        <label class="opt-label">
+          <div class="opt-icon">🚛</div>
+          <div class="opt-content">
+            <div class="opt-title">Minimula</div>
+            <div class="opt-desc">4 ejes · 28 a 35 ton</div>
+          </div>
+          <div class="opt-check"></div>
+        </label>
+
+        <label class="opt-label">
+          <div class="opt-icon">🚜</div>
+          <div class="opt-content">
+            <div class="opt-title">Tractomula</div>
+            <div class="opt-desc">5 a 6 ejes · 35 a 52 ton</div>
+          </div>
+          <div class="opt-check"></div>
+        </label>
+
+        <label class="opt-label">
+          <div class="opt-icon">🏗️</div>
+          <div class="opt-content">
+            <div class="opt-title">Volqueta</div>
+            <div class="opt-desc">Sencilla o doble troque</div>
+          </div>
+          <div class="opt-check"></div>
+        </label>
+
+        <label class="opt-label">
+          <div class="opt-icon">🚗</div>
+          <div class="opt-content">
+            <div class="opt-title">Otro tipo</div>
+            <div class="opt-desc">No está en la lista de arriba</div>
+          </div>
+          <div class="opt-check"></div>
+        </label>
+
+      </div>
+      <div class="field-error" id="e-tipo-vehiculo">Selecciona el tipo de tu vehículo.</div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="field-row-2">
+      <div class="field" style="margin-bottom:0">
+        <label class="field-label">Placa del vehículo <span class="req">*</span></label>
+        <input type="text" id="f-placa" placeholder="ABC-123"
+               maxlength="7" autocomplete="off"
+               style="text-transform:uppercase"/>
+        <div class="field-error" id="e-placa">Formato válido: ABC-123.</div>
+      </div>
+      <div class="field" style="margin-bottom:0">
+        <label class="field-label">Año del vehículo</label>
+        <input type="text" id="f-anio" placeholder="Ej: 2018"
+               inputmode="numeric" maxlength="4" autocomplete="off"/>
+      </div>
+    </div>
+
+    <div class="field" style="margin-top:22px">
+      <label class="field-label">Marca del camión</label>
+      <select id="f-marca">
+        <option value="">— Selecciona la marca —</option>
+        <optgroup label="Marcas frecuentes en Colombia">
+          <option>Chevrolet / GMC</option>
+          <option>International</option>
+          <option>Kenworth</option>
+          <option>Freightliner</option>
+          <option>Mack</option>
+          <option>Volvo</option>
+          <option>Mercedes-Benz (Unimog / Atego)</option>
+          <option>JAC</option>
+          <option>Hino (Toyota)</option>
+          <option>Dongfeng</option>
+          <option>Sinotruk</option>
+          <option>FOTON</option>
+          <option>FAW</option>
+        </optgroup>
+        <option>Otra marca</option>
+      </select>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="field">
+      <label class="field-label">Capacidad de carga <span class="req">*</span></label>
+      <div class="range-val">
+        <span id="cap-val">10</span><span>toneladas</span>
+      </div>
+      <input type="range" id="f-capacidad" min="1" max="52" value="10" step="1"
+             oninput="document.getElementById('cap-val').textContent=this.value"/>
+      <div class="range-labels">
+        <span>1 ton</span><span>15 ton</span><span>30 ton</span><span>52 ton</span>
+      </div>
+      <p class="field-hint" style="margin-top:12px">
+        Mueve el slider hasta la capacidad máxima de tu camión.
+      </p>
+    </div>
+
+    <div class="field">
+      <label class="field-label">¿En qué estado está tu camión? <span class="req">*</span></label>
+      <div class="options-grid" id="estado-vehiculo">
+        <label class="opt-compact">
+          <div class="opt-dot"></div>
+          <div>
+            <div class="opt-compact-text">✅ Excelente</div>
+            <div class="opt-compact-sub">Listo para salir hoy</div>
+          </div>
+        </label>
+        <label class="opt-compact">
+          <div class="opt-dot"></div>
+          <div>
+            <div class="opt-compact-text">👍 Bueno</div>
+            <div class="opt-compact-sub">Funciona bien, pequeños detalles</div>
+          </div>
+        </label>
+        <label class="opt-compact">
+          <div class="opt-dot"></div>
+          <div>
+            <div class="opt-compact-text">🔧 En mantenimiento</div>
+            <div class="opt-compact-sub">Estará disponible pronto</div>
+          </div>
+        </label>
+      </div>
+      <div class="field-error" id="e-estado-vehiculo">Indica el estado de tu vehículo.</div>
+    </div>
+
+    <div class="nav-btns">
+      <button type="button" class="btn btn-outline" data-prev="2">« Volver</button>
+      <button type="button" class="btn btn-amber" data-next="2">
+        Siguiente — Carrocería y carga »
+      </button>
+    </div>
+  </div>
+
+  <!-- ══════════════════════ PASO 3: CARROCERÍA Y TIPOS DE CARGA ══════════════════════ -->
+  <div class="step" id="step-3">
+    <p class="block-eyebrow">03 — Lo que mueves</p>
+    <h2 class="block-title">CARROCERÍA<br>Y CARGA.</h2>
+    <p class="block-sub">Esto determina qué tipo de productores te contactamos. Puedes seleccionar varias opciones.</p>
+
+    <div class="field">
+      <label class="field-label">Tipo de carrocería de tu vehículo <span class="req">*</span></label>
+      <div class="options-grid col2" id="carroceria">
+
+        <label class="opt-label">
+          <div class="opt-icon">📦</div>
+          <div class="opt-content">
+            <div class="opt-title">Estacas</div>
+            <div class="opt-desc">Plataforma abierta con estacas de madera o metal. La más común en el campo.</div>
+          </div>
+          <div class="opt-check"></div>
+        </label>
+
+        <label class="opt-label">
+          <div class="opt-icon">🚐</div>
+          <div class="opt-content">
+            <div class="opt-title">Furgón seco</div>
+            <div class="opt-desc">Caja cerrada. Para bultos, mercancía seca, cacharrería, electrodomésticos.</div>
+          </div>
+          <div class="opt-check"></div>
+        </label>
+
+        <label class="opt-label">
+          <div class="opt-icon">❄️</div>
+          <div class="opt-content">
+            <div class="opt-title">Furgón refrigerado</div>
+            <div class="opt-desc">Cadena de frío. Flores, carnes, lácteos, frutas delicadas.</div>
+          </div>
+          <div class="opt-check"></div>
+        </label>
+
+        <label class="opt-label">
+          <div class="opt-icon">🐄</div>
+          <div class="opt-content">
+            <div class="opt-title">Jaula / Estacas altas</div>
+            <div class="opt-desc">Para ganado en pie: vacas, cerdos, aves, caballos, mulas.</div>
+          </div>
+          <div class="opt-check"></div>
+        </label>
+
+        <label class="opt-label">
+          <div class="opt-icon">🛢️</div>
+          <div class="opt-content">
+            <div class="opt-title">Cisterna</div>
+            <div class="opt-desc">Líquidos: leche cruda, aceite de palma, combustible, agua, melaza.</div>
+          </div>
+          <div class="opt-check"></div>
+        </label>
+
+        <label class="opt-label">
+          <div class="opt-icon">🌾</div>
+          <div class="opt-content">
+            <div class="opt-title">Tolva / Silo</div>
+            <div class="opt-desc">Carga a granel: maíz, arroz, sorgo, cemento, abono.</div>
+          </div>
+          <div class="opt-check"></div>
+        </label>
+
+        <label class="opt-label">
+          <div class="opt-icon">🏗️</div>
+          <div class="opt-content">
+            <div class="opt-title">Volco</div>
+            <div class="opt-desc">Arena, gravilla, tierra, escombros, carbón, caña.</div>
+          </div>
+          <div class="opt-check"></div>
+        </label>
+
+        <label class="opt-label">
+          <div class="opt-icon">🔩</div>
+          <div class="opt-content">
+            <div class="opt-title">Cama baja / Góndola</div>
+            <div class="opt-desc">Maquinaria agrícola, equipos pesados, tractores.</div>
+          </div>
+          <div class="opt-check"></div>
+        </label>
+
+      </div>
+      <div class="field-error" id="e-carroceria">Selecciona el tipo de carrocería.</div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="field">
+      <label class="field-label">
+        ¿Qué tipo de carga has transportado o transportas? <span class="req">*</span>
+      </label>
+      <p class="field-hint" style="margin-bottom:12px">
+        Marca todas las que aplican. Puedes seleccionar varias.
+      </p>
+
+      <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;
+                color:var(--amber);margin-bottom:10px">🌾 Agrícola y ganadera</p>
+      <div class="tags-wrap" id="cargas-agricola">
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Ganado vacuno (bovinos)</span></label>
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Cerdos (porcinos)</span></label>
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Aves (pollos / pavos)</span></label>
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Equinos (caballos / mulas)</span></label>
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Café (cereza o pergamino)</span></label>
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Arroz</span></label>
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Maíz</span></label>
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Sorgo</span></label>
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Frijol / Leguminosas</span></label>
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Papa</span></label>
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Yuca / Ñame</span></label>
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Plátano / Banano</span></label>
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Aguacate</span></label>
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Cítricos y frutas</span></label>
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Caña de azúcar</span></label>
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Cacao</span></label>
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Palma africana</span></label>
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Flores (exportación)</span></label>
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Hortalizas y verduras</span></label>
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Panela / Miel</span></label>
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Leche cruda (cisterna)</span></label>
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Concentrados y alimentos animales</span></label>
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Insumos agrícolas (fertilizantes, agroquímicos)</span></label>
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Semillas</span></label>
+      </div>
+
+      <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;
+                color:var(--amber);margin:20px 0 10px">🏗️ Materiales e industrial</p>
+      <div class="tags-wrap" id="cargas-industrial">
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Arena / Gravilla / Recebo</span></label>
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Cemento / Bloques</span></label>
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Madera</span></label>
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Carbón mineral</span></label>
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Maquinaria agrícola</span></label>
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Electrodomésticos / Mercancía comercial</span></label>
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Carga general (mixta)</span></label>
+      </div>
+      <div class="field-error" id="e-cargas">Selecciona al menos un tipo de carga.</div>
+    </div>
+
+    <div class="nav-btns">
+      <button type="button" class="btn btn-outline" data-prev="3">« Volver</button>
+      <button type="button" class="btn btn-amber" data-next="3">
+        Siguiente — Zonas de trabajo »
+      </button>
+    </div>
+  </div>
+
+  <!-- ══════════════════════ PASO 4: ZONAS ══════════════════════ -->
+  <div class="step" id="step-4">
+    <p class="block-eyebrow">04 — Dónde trabajas</p>
+    <h2 class="block-title">TUS<br>ZONAS.</h2>
+    <p class="block-sub">Así te mandamos cargas en las rutas que ya conoces. Marca todas donde operas.</p>
+
+    <div class="field">
+      <label class="field-label">¿En qué departamentos operas? <span class="req">*</span></label>
+      <p class="field-hint" style="margin-bottom:12px">
+        Puedes marcar varios. Incluye donde tienes base y donde llegas.
+      </p>
+      <div class="tags-wrap" id="zonas-dptos">
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Amazonas</span></label>
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Antioquia</span></label>
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Arauca</span></label>
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Atlántico</span></label>
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Bolívar</span></label>
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Boyacá</span></label>
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Caldas</span></label>
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Caquetá</span></label>
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Casanare</span></label>
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Cauca</span></label>
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Cesar</span></label>
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Chocó</span></label>
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Córdoba</span></label>
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Cundinamarca</span></label>
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Huila</span></label>
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">La Guajira</span></label>
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Magdalena</span></label>
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Meta</span></label>
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Nariño</span></label>
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Norte de Santander</span></label>
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Putumayo</span></label>
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Quindío</span></label>
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Risaralda</span></label>
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Santander</span></label>
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Sucre</span></label>
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Tolima</span></label>
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Valle del Cauca</span></label>
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Vaupés</span></label>
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Vichada</span></label>
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Todo Colombia</span></label>
+      </div>
+      <div class="field-error" id="e-zonas">Selecciona al menos un departamento donde operas.</div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="field">
+      <label class="field-label">¿Por qué tipo de vías manejas? <span class="req">*</span></label>
+      <div class="options-grid" id="vias">
+        <label class="opt-compact">
+          <div class="opt-dot"></div>
+          <div>
+            <div class="opt-compact-text">🛣️ Solo vías pavimentadas</div>
+            <div class="opt-compact-sub">Carreteras principales y secundarias</div>
+          </div>
+        </label>
+        <label class="opt-compact">
+          <div class="opt-dot"></div>
+          <div>
+            <div class="opt-compact-text">🌿 Pavimentadas y destapadas</div>
+            <div class="opt-compact-sub">Principal + caminos rurales</div>
+          </div>
+        </label>
+        <label class="opt-compact">
+          <div class="opt-dot"></div>
+          <div>
+            <div class="opt-compact-text">🚜 Todo tipo de vías</div>
+            <div class="opt-compact-sub">Incluye trochas y zonas de difícil acceso</div>
+          </div>
+        </label>
+      </div>
+      <div class="field-error" id="e-vias">Indica qué tipo de vías manejas.</div>
+    </div>
+
+    <div class="field">
+      <label class="field-label">
+        ¿Aceptas viajes de larga distancia (más de 8 horas)?
+      </label>
+      <div class="options-grid col2" id="viaje-largo">
+        <label class="opt-compact">
+          <div class="opt-dot"></div>
+          <div class="opt-compact-text">✅ Sí, sin problema</div>
+        </label>
+        <label class="opt-compact">
+          <div class="opt-dot"></div>
+          <div class="opt-compact-text">🕐 Solo viajes cortos (&lt;4h)</div>
+        </label>
+        <label class="opt-compact">
+          <div class="opt-dot"></div>
+          <div class="opt-compact-text">📋 Depende de la carga y el precio</div>
+        </label>
+      </div>
+    </div>
+
+    <div class="nav-btns">
+      <button type="button" class="btn btn-outline" data-prev="4">« Volver</button>
+      <button type="button" class="btn btn-amber" data-next="4">
+        Siguiente — Disponibilidad »
+      </button>
+    </div>
+  </div>
+
+  <!-- ══════════════════════ PASO 5: DISPONIBILIDAD ══════════════════════ -->
+  <div class="step" id="step-5">
+    <p class="block-eyebrow">05 — Cuándo puedes</p>
+    <h2 class="block-title">TU<br>DISPONIBILIDAD.</h2>
+    <p class="block-sub">Así priorizamos cuándo y qué tan seguido te contactamos con cargas.</p>
+
+    <div class="field">
+      <label class="field-label">
+        ¿Estás disponible para recibir cargas ahora? <span class="req">*</span>
+      </label>
+      <div class="options-grid" id="disponibilidad">
+        <label class="opt-compact">
+          <div class="opt-dot"></div>
+          <div>
+            <div class="opt-compact-text">🟢 Sí, disponible ahora</div>
+            <div class="opt-compact-sub">El camión está libre y puedo salir</div>
+          </div>
+        </label>
+        <label class="opt-compact"
+               data-fecha="true">
+          <div class="opt-dot"></div>
+          <div>
+            <div class="opt-compact-text">📅 Disponible desde una fecha</div>
+            <div class="opt-compact-sub">Ahora tengo carga, pero pronto termino</div>
+          </div>
+        </label>
+        <label class="opt-compact">
+          <div class="opt-dot"></div>
+          <div>
+            <div class="opt-compact-text">🔧 En mantenimiento</div>
+            <div class="opt-compact-sub">Pronto estaré listo</div>
+          </div>
+        </label>
+        <label class="opt-compact">
+          <div class="opt-dot"></div>
+          <div>
+            <div class="opt-compact-text">⛔ Por el momento no</div>
+            <div class="opt-compact-sub">Quiero registrarme pero no estoy disponible aún</div>
+          </div>
+        </label>
+      </div>
+      <div id="fecha-disp-wrap" style="display:none;margin-top:12px">
+        <input type="date" id="f-fecha-disp" style="max-width:220px"/>
+        <p class="field-hint">¿Desde qué fecha estarías disponible?</p>
+      </div>
+      <div class="field-error" id="e-disponibilidad">Indica tu disponibilidad actual.</div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="field">
+      <label class="field-label">¿Qué días de la semana puedes trabajar?</label>
+      <div class="tags-wrap" id="dias-semana">
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Lunes</span></label>
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Martes</span></label>
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Miércoles</span></label>
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Jueves</span></label>
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Viernes</span></label>
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Sábado</span></label>
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Domingo</span></label>
+        <label class="tag-label"><span class="tag-check">✓ </span><span class="tag-text">Cualquier día</span></label>
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="field-label">
+        ¿Aceptas cargas urgentes con menos de 24 horas de aviso?
+      </label>
+      <div class="options-grid col2" id="urgencias">
+        <label class="opt-compact">
+          <div class="opt-dot"></div>
+          <div class="opt-compact-text">✅ Sí, si la carga vale</div>
+        </label>
+        <label class="opt-compact">
+          <div class="opt-dot"></div>
+          <div class="opt-compact-text">❌ No, necesito planear</div>
+        </label>
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="field-label">¿Trabajas solo o con ayudante / segundo conductor?</label>
+      <div class="options-grid" id="ayudante">
+        <label class="opt-compact">
+          <div class="opt-dot"></div>
+          <div class="opt-compact-text">👤 Solo</div>
+        </label>
+        <label class="opt-compact">
+          <div class="opt-dot"></div>
+          <div class="opt-compact-text">👥 Con ayudante fijo</div>
+        </label>
+        <label class="opt-compact">
+          <div class="opt-dot"></div>
+          <div class="opt-compact-text">🔄 Depende del viaje</div>
+        </label>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="field">
+      <label class="field-label">¿Cuántos años llevas manejando camión?</label>
+      <div class="options-grid col3" id="experiencia">
+        <label class="opt-compact">
+          <div class="opt-dot"></div><div class="opt-compact-text">Menos de 2 años</div>
+        </label>
+        <label class="opt-compact">
+          <div class="opt-dot"></div><div class="opt-compact-text">2 a 5 años</div>
+        </label>
+        <label class="opt-compact">
+          <div class="opt-dot"></div><div class="opt-compact-text">5 a 10 años</div>
+        </label>
+        <label class="opt-compact">
+          <div class="opt-dot"></div><div class="opt-compact-text">10 a 20 años</div>
+        </label>
+        <label class="opt-compact">
+          <div class="opt-dot"></div><div class="opt-compact-text">Más de 20 años</div>
+        </label>
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="field-label">¿Cuántos viajes haces al mes aproximadamente?</label>
+      <div class="options-grid col3" id="viajes-mes">
+        <label class="opt-compact">
+          <div class="opt-dot"></div><div class="opt-compact-text">1 a 4</div>
+        </label>
+        <label class="opt-compact">
+          <div class="opt-dot"></div><div class="opt-compact-text">5 a 10</div>
+        </label>
+        <label class="opt-compact">
+          <div class="opt-dot"></div><div class="opt-compact-text">Más de 10</div>
+        </label>
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="field-label">¿Algo más que debamos saber de ti o de tu camión?</label>
+      <textarea id="f-notas"
+        placeholder="Ej: Tengo experiencia en transporte de ganado del Llano a Bogotá. Mi camión tiene carpa. Prefiero cargas de más de 2 días..."></textarea>
+      <p class="field-hint">Opcional. Toda información extra nos ayuda a conseguirte mejores cargas.</p>
+    </div>
+
+    <div class="nav-btns">
+      <button type="button" class="btn btn-outline" data-prev="5">« Volver</button>
+      <button type="button" class="btn btn-amber" data-next="5">
+        Ver resumen y confirmar »
+      </button>
+    </div>
+  </div>
+
+  <!-- ══════════════════════ PASO 6: RESUMEN ══════════════════════ -->
+  <div class="step" id="step-6">
+    <p class="block-eyebrow">06 — Confirma</p>
+    <h2 class="block-title">TODO<br>LISTO.</h2>
+    <p class="block-sub">
+      Revisa que tus datos estén correctos antes de confirmar. Si algo está mal,
+      puedes volver atrás.
+    </p>
+
+    <div class="confirm-note">
+      ✅ <strong>¿Está todo correcto?</strong> Una vez confirmes, tu registro queda activo
+      en la red TARGO y empezarás a recibir cargas disponibles en tu zona por WhatsApp.
+    </div>
+
+    <div class="summary-block">
+      <div class="summary-header">
+        <span class="summary-header-icon">👤</span>
+        <span class="summary-header-title">Datos personales</span>
+      </div>
+      <div class="summary-rows">
+        <div class="summary-row">
+          <span class="sum-key">Nombre</span>
+          <span class="sum-val" id="s-nombre">—</span>
+        </div>
+        <div class="summary-row">
+          <span class="sum-key">Cédula</span>
+          <span class="sum-val" id="s-cedula">—</span>
+        </div>
+        <div class="summary-row">
+          <span class="sum-key">WhatsApp</span>
+          <span class="sum-val" id="s-wpp">—</span>
+        </div>
+        <div class="summary-row">
+          <span class="sum-key">Base</span>
+          <span class="sum-val" id="s-base">—</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="summary-block">
+      <div class="summary-header">
+        <span class="summary-header-icon">🚛</span>
+        <span class="summary-header-title">Vehículo</span>
+      </div>
+      <div class="summary-rows">
+        <div class="summary-row">
+          <span class="sum-key">Tipo</span>
+          <span class="sum-val" id="s-tipo">—</span>
+        </div>
+        <div class="summary-row">
+          <span class="sum-key">Placa</span>
+          <span class="sum-val" id="s-placa">—</span>
+        </div>
+        <div class="summary-row">
+          <span class="sum-key">Marca / Año</span>
+          <span class="sum-val" id="s-marcaanio">—</span>
+        </div>
+        <div class="summary-row">
+          <span class="sum-key">Capacidad</span>
+          <span class="sum-val" id="s-cap">—</span>
+        </div>
+        <div class="summary-row">
+          <span class="sum-key">Estado</span>
+          <span class="sum-val" id="s-estado">—</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="summary-block">
+      <div class="summary-header">
+        <span class="summary-header-icon">📦</span>
+        <span class="summary-header-title">Carrocería y tipo de carga</span>
+      </div>
+      <div class="summary-rows">
+        <div class="summary-row">
+          <span class="sum-key">Carrocería</span>
+          <span class="sum-val" id="s-carroceria">—</span>
+        </div>
+        <div class="summary-row">
+          <span class="sum-key">Cargas</span>
+          <span class="sum-val" id="s-cargas">—</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="summary-block">
+      <div class="summary-header">
+        <span class="summary-header-icon">📍</span>
+        <span class="summary-header-title">Zonas de operación</span>
+      </div>
+      <div class="summary-rows">
+        <div class="summary-row">
+          <span class="sum-key">Departamentos</span>
+          <span class="sum-val" id="s-zonas">—</span>
+        </div>
+        <div class="summary-row">
+          <span class="sum-key">Tipo de vías</span>
+          <span class="sum-val" id="s-vias">—</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="summary-block">
+      <div class="summary-header">
+        <span class="summary-header-icon">📅</span>
+        <span class="summary-header-title">Disponibilidad</span>
+      </div>
+      <div class="summary-rows">
+        <div class="summary-row">
+          <span class="sum-key">Estado</span>
+          <span class="sum-val" id="s-disp">—</span>
+        </div>
+        <div class="summary-row">
+          <span class="sum-key">Experiencia</span>
+          <span class="sum-val" id="s-exp">—</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="nav-btns" style="flex-direction:column">
+      <button type="button" id="btn-confirmar" class="btn btn-whatsapp">
+        ✅ Confirmar y registrarme en TARGO
+      </button>
+      <button type="button" class="btn btn-outline"
+              data-prev="6"
+              style="flex:none;width:100%;justify-content:center">
+        « Volver y corregir
+      </button>
+    </div>
+  </div>
+
+  <!-- ══════════════════════ PANTALLA ÉXITO ══════════════════════ -->
+  <div class="success-screen" id="success">
+    <div class="success-icon">✅</div>
+    <h2 class="success-title">
+      LISTO,<br><span class="amber" id="s-nombre-final">CONDUCTOR.</span>
+    </h2>
+    <p class="success-sub">
+      Ya eres parte de la red TARGO. Cuando haya una carga en tu zona que coincida
+      con tu camión, te llegará un mensaje directo a tu WhatsApp.
+    </p>
+    <div class="wpp-btn-wrap">
+      <a id="wpp-btn" href="#" class="btn btn-whatsapp"
+         target="_blank" rel="noopener noreferrer">
+        Ir al WhatsApp de TARGO »
+      </a>
+    </div>
+    <p class="success-tagline">›› EL CAMPO SE MUEVE.</p>
+  </div>
+
+</div><!-- /form-wrap -->
+
+<script>
+  /* ── CONFIGURACIÓN — editar antes de publicar ──────────────── */
+  var WEBHOOK_URL = 'TU_WEBHOOK_AQUI'; // ej: https://hook.eu1.make.com/xxxxx
+  var TARGO_WPP   = '573000000000';    // número TARGO con código de país (57)
+  /* ─────────────────────────────────────────────────────────── */
+
+  var TOTAL = 6;
+  var current = 1;
+
+  /* Fecha mínima del campo disponibilidad = hoy */
+  document.getElementById('f-fecha-disp').min = new Date().toISOString().split('T')[0];
+
+  /* Inicializar dots de progreso */
+  var dotsEl = document.getElementById('dots');
+  for (var i = 1; i <= TOTAL; i++) {
+    var d = document.createElement('div');
+    d.className = 'dot' + (i === 1 ? ' active' : '');
+    d.id = 'dot-' + i;
+    dotsEl.appendChild(d);
+  }
+
+  function updateProgress(n) {
+    var pct = Math.round((n / TOTAL) * 100);
+    document.getElementById('p-fill').style.width = pct + '%';
+    document.getElementById('step-label').textContent = 'Paso ' + n + ' de ' + TOTAL;
+    document.getElementById('step-pct').textContent = pct + '%';
+    for (var i = 1; i <= TOTAL; i++) {
+      var dot = document.getElementById('dot-' + i);
+      dot.className = 'dot' + (i < n ? ' done' : '') + (i === n ? ' active' : '');
+    }
+  }
+
+  function showStep(n) {
+    document.querySelectorAll('.step').forEach(function(s) {
+      s.classList.remove('active');
+    });
+    document.getElementById('step-' + n).classList.add('active');
+    updateProgress(n);
+    /* Scroll robusto para iOS Safari — window.scrollTo con behavior:'smooth'
+       falla cuando html NO tiene overflow-x:hidden pero el body sí */
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+    try { window.scrollTo(0, 0); } catch(e) {}
+  }
+
+  /* Selección única (radio) */
+  function selectOne(el, groupId) {
+    document.querySelectorAll(
+      '#' + groupId + ' .opt-label, #' + groupId + ' .opt-compact'
+    ).forEach(function(l) {
+      l.classList.remove('selected');
+    });
+    el.classList.add('selected');
+    var errEl = document.getElementById('e-' + groupId);
+    if (errEl) errEl.classList.remove('show');
+  }
+
+  /* Toggle checkbox-tag (selección múltiple) */
+  function toggleTag(el) {
+    el.classList.toggle('selected');
+  }
+
+  /* Mostrar/ocultar campo fecha disponibilidad */
+  function toggleFechaDisp(show) {
+    document.getElementById('fecha-disp-wrap').style.display = show ? 'block' : 'none';
+  }
+
+  /* ── EVENT DELEGATION — maneja TODOS los elementos interactivos del form ─
+     Más confiable que onclick inline en mobile (Android WebView, iOS Safari).
+     Cubre: botones de navegación, opciones de selección y tags. */
+  document.addEventListener('click', function(e) {
+
+    /* Botones de navegación (data-next / data-prev / #btn-confirmar) */
+    var navBtn = e.target.closest('[data-next], [data-prev], #btn-confirmar');
+    if (navBtn) {
+      if (navBtn.dataset.next !== undefined) {
+        next(parseInt(navBtn.dataset.next, 10));
+      } else if (navBtn.dataset.prev !== undefined) {
+        prev(parseInt(navBtn.dataset.prev, 10));
+      } else if (navBtn.id === 'btn-confirmar' && !navBtn.disabled) {
+        confirmar();
+      }
+      return;
+    }
+
+    /* Opciones de selección única */
+    var opt = e.target.closest('.opt-label, .opt-compact');
+    if (opt) {
+      var container = opt.closest('[id]');
+      if (container) {
+        selectOne(opt, container.id);
+        if (container.id === 'disponibilidad') {
+          toggleFechaDisp(opt.dataset.fecha === 'true');
+        }
+      }
+      return;
+    }
+
+    /* Tags de selección múltiple */
+    var tag = e.target.closest('.tag-label');
+    if (tag) toggleTag(tag);
+  });
+
+  /* Obtener texto del elemento seleccionado en un grupo */
+  function getSelected(groupId) {
+    var el = document.querySelector('#' + groupId + ' .selected');
+    if (!el) return '';
+    var t = el.querySelector('.opt-title, .opt-compact-text');
+    return t ? t.textContent.trim() : '';
+  }
+
+  /* Obtener textos de tags seleccionadas en un contenedor específico */
+  function getSelectedTags(containerId) {
+    var els = document.querySelectorAll(
+      '#' + containerId + ' .tag-label.selected .tag-text'
+    );
+    return Array.from(els).map(function(e) { return e.textContent.trim(); });
+  }
+
+  /* Obtener todas las cargas seleccionadas (ambas secciones del paso 3) */
+  function getSelectedTagsAll() {
+    var all = document.querySelectorAll(
+      '#step-3 .tags-wrap .tag-label.selected .tag-text'
+    );
+    return Array.from(all).map(function(e) { return e.textContent.trim(); });
+  }
+
+  /* Validación por paso */
+  function validate(n) {
+    var ok = true;
+
+    function showErr(id) {
+      var el = document.getElementById(id);
+      if (el) el.classList.add('show');
+      ok = false;
+    }
+    function clearErr(id) {
+      var el = document.getElementById(id);
+      if (el) el.classList.remove('show');
+    }
+
+    if (n === 1) {
+      var nom = document.getElementById('f-nombre').value.trim();
+
+      /* Sanitizar cédula en el mismo instante (por si autofill no disparó 'input') */
+      var cedEl = document.getElementById('f-cedula');
+      cedEl.value = cedEl.value.replace(/\D/g, '');
+      var ced = cedEl.value.trim();
+
+      /* Sanitizar WhatsApp: quitar no-dígitos y strip del indicativo 57 si tiene 12 dígitos */
+      var wppEl = document.getElementById('f-wpp');
+      var wppDigits = wppEl.value.replace(/\D/g, '');
+      if (wppDigits.length === 12 && wppDigits.slice(0, 2) === '57') wppDigits = wppDigits.slice(2);
+      wppEl.value = wppDigits;
+      var wpp = wppDigits;
+
+      var mun = document.getElementById('f-municipio').value.trim();
+      var dpt = document.getElementById('f-dpto').value;
+
+      nom.split(' ').filter(function(w) { return w; }).length < 2
+        ? showErr('e-nombre') : clearErr('e-nombre');
+      !/^\d{8,10}$/.test(ced) ? showErr('e-cedula') : clearErr('e-cedula');
+      !/^\d{10}$/.test(wpp)   ? showErr('e-wpp')    : clearErr('e-wpp');
+      !mun                    ? showErr('e-municipio') : clearErr('e-municipio');
+      !dpt                    ? showErr('e-dpto')    : clearErr('e-dpto');
+    }
+
+    if (n === 2) {
+      !getSelected('tipo-vehiculo')
+        ? showErr('e-tipo-vehiculo') : clearErr('e-tipo-vehiculo');
+
+      var placa = document.getElementById('f-placa').value.trim();
+      !/^[A-Za-z]{3}-?\d{3}$/.test(placa)
+        ? showErr('e-placa') : clearErr('e-placa');
+
+      !getSelected('estado-vehiculo')
+        ? showErr('e-estado-vehiculo') : clearErr('e-estado-vehiculo');
+    }
+
+    if (n === 3) {
+      !getSelected('carroceria')
+        ? showErr('e-carroceria') : clearErr('e-carroceria');
+      getSelectedTagsAll().length === 0
+        ? showErr('e-cargas') : clearErr('e-cargas');
+    }
+
+    if (n === 4) {
+      getSelectedTags('zonas-dptos').length === 0
+        ? showErr('e-zonas') : clearErr('e-zonas');
+      !getSelected('vias')
+        ? showErr('e-vias') : clearErr('e-vias');
+    }
+
+    if (n === 5) {
+      !getSelected('disponibilidad')
+        ? showErr('e-disponibilidad') : clearErr('e-disponibilidad');
+    }
+
+    return ok;
+  }
+
+  /* Construir el resumen del paso 6 */
+  function buildSummary() {
+    var nombre = document.getElementById('f-nombre').value.trim();
+    document.getElementById('s-nombre').textContent = nombre;
+    document.getElementById('s-cedula').textContent =
+      document.getElementById('f-cedula').value.trim();
+    document.getElementById('s-wpp').textContent =
+      '+57 ' + document.getElementById('f-wpp').value.trim();
+    document.getElementById('s-base').textContent =
+      document.getElementById('f-municipio').value.trim() +
+      ', ' + document.getElementById('f-dpto').value;
+
+    document.getElementById('s-tipo').textContent = getSelected('tipo-vehiculo');
+    document.getElementById('s-placa').textContent =
+      document.getElementById('f-placa').value.trim().toUpperCase();
+
+    var marca = document.getElementById('f-marca').value;
+    var anio  = document.getElementById('f-anio').value;
+    document.getElementById('s-marcaanio').textContent =
+      [marca, anio].filter(Boolean).join(' · ') || '—';
+
+    document.getElementById('s-cap').textContent =
+      document.getElementById('f-capacidad').value + ' toneladas';
+    document.getElementById('s-estado').textContent = getSelected('estado-vehiculo');
+
+    document.getElementById('s-carroceria').textContent = getSelected('carroceria');
+    var cargas = getSelectedTagsAll();
+    document.getElementById('s-cargas').textContent =
+      cargas.length ? cargas.join(', ') : '—';
+
+    var zonas = getSelectedTags('zonas-dptos');
+    document.getElementById('s-zonas').textContent =
+      zonas.length ? zonas.join(', ') : '—';
+    document.getElementById('s-vias').textContent = getSelected('vias');
+
+    document.getElementById('s-disp').textContent = getSelected('disponibilidad');
+    document.getElementById('s-exp').textContent = getSelected('experiencia') || '—';
+
+    document.getElementById('s-nombre-final').textContent =
+      nombre.split(' ')[0].toUpperCase() + '.';
+  }
+
+  function next(n) {
+    if (!validate(n)) {
+      var firstErr = document.querySelector('.step.active .field-error.show');
+      if (firstErr) {
+        firstErr.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      var btn = document.querySelector('.step.active .btn-amber');
+      if (btn) {
+        btn.classList.remove('btn-shake');
+        void btn.offsetWidth;
+        btn.classList.add('btn-shake');
+      }
+      return;
+    }
+    current = n + 1;
+    if (current === 6) buildSummary();
+    showStep(current);
+  }
+
+  function prev(n) {
+    current = n - 1;
+    showStep(current);
+  }
+
+  /* Recolectar todos los datos del formulario */
+  function collectFormData() {
+    return {
+      nombre:                  document.getElementById('f-nombre').value.trim(),
+      cedula:                  document.getElementById('f-cedula').value.trim(),
+      whatsapp:                document.getElementById('f-wpp').value.trim(),
+      tel_alterno:             document.getElementById('f-tel2').value.trim() || null,
+      municipio:               document.getElementById('f-municipio').value.trim(),
+      departamento:            document.getElementById('f-dpto').value,
+      tipo_vehiculo:           getSelected('tipo-vehiculo'),
+      placa:                   document.getElementById('f-placa').value.trim().toUpperCase(),
+      anio_vehiculo:           document.getElementById('f-anio').value || null,
+      marca:                   document.getElementById('f-marca').value || null,
+      capacidad_ton:           parseInt(document.getElementById('f-capacidad').value, 10),
+      estado_vehiculo:         getSelected('estado-vehiculo'),
+      carroceria:              getSelected('carroceria'),
+      tipos_carga:             getSelectedTagsAll(),
+      departamentos_operacion: getSelectedTags('zonas-dptos'),
+      tipo_vias:               getSelected('vias'),
+      viaje_largo:             getSelected('viaje-largo') || null,
+      disponibilidad:          getSelected('disponibilidad'),
+      fecha_disponible:        document.getElementById('f-fecha-disp').value || null,
+      dias_semana:             getSelectedTags('dias-semana'),
+      urgencias:               getSelected('urgencias') || null,
+      ayudante:                getSelected('ayudante') || null,
+      experiencia_anios:       getSelected('experiencia') || null,
+      viajes_mes:              getSelected('viajes-mes') || null,
+      notas:                   document.getElementById('f-notas').value.trim() || null,
+      timestamp:               new Date().toISOString(),
+      fuente:                  'targo_formulario_web'
+    };
+  }
+
+  /* Construir mensaje de WhatsApp */
+  function buildWppMsg(d) {
+    var cargas = d.tipos_carga.length > 0
+      ? d.tipos_carga.slice(0, 6).join(', ') +
+        (d.tipos_carga.length > 6 ? ' y más...' : '')
+      : 'No especificó';
+    var zonas = d.departamentos_operacion.length > 0
+      ? d.departamentos_operacion.slice(0, 5).join(', ') +
+        (d.departamentos_operacion.length > 5 ? '...' : '')
+      : 'No especificó';
+
+    return '🚛 *NUEVO CONDUCTOR TARGO*\n\n'
+      + '👤 *DATOS PERSONALES*\n'
+      + 'Nombre: ' + d.nombre + '\n'
+      + 'Cédula: ' + d.cedula + '\n'
+      + 'WhatsApp: +57 ' + d.whatsapp + '\n'
+      + (d.tel_alterno ? 'Tel alterno: ' + d.tel_alterno + '\n' : '')
+      + 'Base: ' + d.municipio + ', ' + d.departamento + '\n\n'
+      + '🚚 *VEHÍCULO*\n'
+      + 'Tipo: ' + d.tipo_vehiculo + '\n'
+      + 'Placa: ' + d.placa + '\n'
+      + (d.marca ? 'Marca: ' + d.marca + '\n' : '')
+      + (d.anio_vehiculo ? 'Año: ' + d.anio_vehiculo + '\n' : '')
+      + 'Capacidad: ' + d.capacidad_ton + ' ton\n'
+      + 'Carrocería: ' + d.carroceria + '\n'
+      + 'Estado: ' + d.estado_vehiculo + '\n\n'
+      + '📦 *TRABAJO*\n'
+      + 'Cargas: ' + cargas + '\n'
+      + 'Zonas: ' + zonas + '\n'
+      + 'Vías: ' + (d.tipo_vias || 'No especificó') + '\n'
+      + 'Larga distancia: ' + (d.viaje_largo || 'No especificó') + '\n\n'
+      + '📅 *DISPONIBILIDAD*\n'
+      + 'Estado: ' + d.disponibilidad + '\n'
+      + (d.fecha_disponible ? 'Disponible desde: ' + d.fecha_disponible + '\n' : '')
+      + (d.dias_semana.length ? 'Días: ' + d.dias_semana.join(', ') + '\n' : '')
+      + (d.urgencias ? 'Urgentes: ' + d.urgencias + '\n' : '')
+      + (d.experiencia_anios ? 'Experiencia: ' + d.experiencia_anios + '\n' : '')
+      + (d.notas ? '\n📝 Notas: ' + d.notas : '');
+  }
+
+  /*
+   * Mostrar pantalla de éxito.
+   * El href del botón WhatsApp se construye aquí — dentro del flujo del
+   * gesto del usuario (click directo) — para que iOS Safari no lo bloquee.
+   */
+  function mostrarExito(data) {
+    var msg = buildWppMsg(data);
+    document.getElementById('wpp-btn').href =
+      'https://wa.me/' + TARGO_WPP + '?text=' + encodeURIComponent(msg);
+
+    document.getElementById('step-6').classList.remove('active');
+    document.getElementById('success').classList.add('active');
+    document.getElementById('dots').style.display = 'none';
+    document.querySelector('.progress-wrap').style.display = 'none';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  /* Confirmar registro */
+  function confirmar() {
+    var btn = document.getElementById('btn-confirmar');
+    btn.textContent = '⏳ Enviando registro...';
+    btn.disabled = true;
+
+    var data = collectFormData();
+
+    if (WEBHOOK_URL !== 'TU_WEBHOOK_AQUI') {
+      fetch(WEBHOOK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      })
+      .then(function() { mostrarExito(data); })
+      .catch(function() { mostrarExito(data); });
+    } else {
+      mostrarExito(data);
+    }
+  }
+
+  /* ── Formateo y sanitización de campos ─────────────────────── */
+
+  /* Cédula: solo dígitos */
+  document.getElementById('f-cedula').addEventListener('input', function() {
+    this.value = this.value.replace(/\D/g, '');
+  });
+
+  /* WhatsApp: solo dígitos */
+  document.getElementById('f-wpp').addEventListener('input', function() {
+    this.value = this.value.replace(/\D/g, '');
+  });
+
+  /* Teléfono alterno: solo dígitos */
+  document.getElementById('f-tel2').addEventListener('input', function() {
+    this.value = this.value.replace(/\D/g, '');
+  });
+
+  /* Año: solo dígitos, máximo 4 caracteres */
+  document.getElementById('f-anio').addEventListener('input', function() {
+    this.value = this.value.replace(/\D/g, '').slice(0, 4);
+  });
+
+  /* Placa: formato automático ABC-123 */
+  document.getElementById('f-placa').addEventListener('input', function() {
+    var v = this.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+    if (v.length > 3) v = v.slice(0, 3) + '-' + v.slice(3, 6);
+    this.value = v;
+  });
+
+  /* Inicializar */
+  updateProgress(1);
+</script>
+</body>
+</html>
